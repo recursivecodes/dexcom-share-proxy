@@ -23,7 +23,6 @@ public class DexcomShareAuthenticationProvider implements AuthenticationProvider
 
     @Override
     public Publisher<AuthenticationResponse> authenticate(AuthenticationRequest authenticationRequest) {
-        System.out.println("**call to authenticate");
         String username = (String) authenticationRequest.getIdentity();
         String password = (String) authenticationRequest.getSecret();
         User user = new User(username, password);

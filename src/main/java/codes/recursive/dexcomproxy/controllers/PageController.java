@@ -106,7 +106,6 @@ public class PageController {
                     String url = redirect_uri
                             + "?state=" + state
                             + "&code="+ authCode;
-                    System.out.println(url);
                     return HttpResponse.redirect(URI.create(url));
                 }
             }
