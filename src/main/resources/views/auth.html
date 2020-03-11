@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Authenticate</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+</head>
+<body>
+<section>
+
+    <div class="container login-container p-5">
+
+        <div class="row">
+            <div class="col-md-6 offset-md-3 login-form bg-light text-dark p-5 border border-dark">
+                <h3>Dexcom Share Login</h3>
+
+                <div class="alert alert-success">
+                    <p>Please note: This service is not affiliated with, or in any way related to Dexcom. This is an open-source proxy to the Dexcom Share API. <strong>This service does not store your password!</strong> This service establishes a session token in an OAuth compliant manner and proxies a call to the Dexcom Share API on behalf of the user. You are encouraged to check the source code for this application and submit fixes as necessary.</p>
+                    <p>Login with your <strong>Dexcom Share</strong> credentials below!</p>
+                </div>
+
+                <div class="alert alert-danger" th:if="${auth_failed == 'failed'}">
+                    <strong>Authentication failed. Please try again.</strong>
+                </div>
+                <form action="/auth" id="authForm" method="POST">
+                    <input type="hidden" id="redirect_uri" name="redirect_uri" th:value="${redirect_uri}">
+                    <input type="hidden" id="state" name="state" th:value="${state}">
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="accountName" name="accountName" placeholder="Dexcom Share Username" value="" />
+                    </div>
+                    <div class="form-group">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Dexcom Share Password" value="" />
+                    </div>
+                    <div class="form-group text-right">
+                        <input type="submit" class="btn btn-success w-50" value="Login" />
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</section>
+</body>
+</html>

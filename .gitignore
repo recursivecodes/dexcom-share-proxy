@@ -1,0 +1,11 @@
+*.class
+build
+.gradle
+.idea
+.DS_Store
+*.iml
+.idea
+app.yaml
+DockerfileGraal
+docker-build.sh
+build-resource/

@@ -1,0 +1,22 @@
+micronaut:
+  security:
+    enabled: true
+    endpoints:
+      login:
+        enabled: true
+      oauth:
+        enabled: true
+      oauth2:
+        enabled: true
+    token:
+      jwt:
+        enabled: true
+        signatures:
+          secret:
+            generator:
+              secret: ${CODES_RECURSIVE_SECRET}
+codes:
+  recursive:
+    client-id: ${CODES_RECURSIVE_CLIENT_ID}
+    client-secret: ${CODES_RECURSIVE_CLIENT_SECRET}
+    dexcom-share-base-url: https://share1.dexcom.com
