@@ -1,0 +1,52 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: dexcom-proxy
+  labels:
+    app: dexcom-proxy
+spec:
+  type: ClusterIP
+  selector:
+    app: dexcom-proxy
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: dexcom-proxy
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dexcom-proxy
+        version: v1
+    spec:
+      containers:
+        - name: dexcom-proxy
+          env:
+            - name: CODES_RECURSIVE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dexcom-proxy-secrets
+                  key: secret
+            - name: CODES_RECURSIVE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: dexcom-proxy-secrets
+                  key: clientId
+            - name: CODES_RECURSIVE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dexcom-proxy-secrets
+                  key: clientSecret
+          image: recursivecodes/dexcom-proxy:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+            - containerPort: 8443
+---
