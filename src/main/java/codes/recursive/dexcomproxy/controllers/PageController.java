@@ -134,16 +134,14 @@ public class PageController {
                     Map.of("invalid_credentials", true)
             );
         }
-
-        Map<String, Object> store = dataStore.authCodes.get(code);
-        AccessRefreshToken token = (AccessRefreshToken) store.get("token");
-        String username = (String) store.get("username");
-        String sessionId = dataStore.sessionIds.get(username);
-
+        AccessRefreshToken token = new AccessRefreshToken();
+        if( code != null ) {
+            Map<String, Object> store = dataStore.authCodes.get(code);
+            token = (AccessRefreshToken) store.get("token");
+        }
         if( refresh_token != null ) {
             Optional<AccessRefreshToken> tokenOptional = accessRefreshTokenGenerator.generate(refresh_token, new HashMap<String, Object>());
             token = tokenOptional.get();
-            store.put("token", token);
         }
         return HttpResponse.ok(
                 Map.of(

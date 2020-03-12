@@ -16,15 +16,4 @@ public class DataStore {
 
     public DataStore() {
     }
-
-    public Optional<AccessRefreshToken> findAuthCodeByRefreshToken(String refreshToken) {
-        Optional<AccessRefreshToken> found = Optional.empty();
-        for (Object key : this.authCodes.keySet()) {
-            AccessRefreshToken token = (AccessRefreshToken) this.authCodes.get(key).get("token");
-            if( token.getRefreshToken().equals(refreshToken) ) {
-                found = Optional.of(token);
-            }
-        }
-        return found;
-    }
 }
