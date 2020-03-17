@@ -1,34 +1,29 @@
 package codes.recursive.dexcomproxy.controllers;
 
 import codes.recursive.dexcomproxy.client.DexcomShareClient;
-import codes.recursive.dexcomproxy.model.AuthResponse;
-import codes.recursive.dexcomproxy.model.User;
+import codes.recursive.dexcomproxy.model.AuthRequest;
+import codes.recursive.dexcomproxy.model.TokenRequest;
 import codes.recursive.dexcomproxy.services.DataStore;
 import codes.recursive.dexcomproxy.services.DexcomShareAuthenticationProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.context.annotation.Property;
-import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.*;
-import io.micronaut.security.event.LoginSuccessfulEvent;
-import io.micronaut.security.handlers.LoginHandler;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.security.token.jwt.generator.AccessRefreshTokenGenerator;
 import io.micronaut.security.token.jwt.render.AccessRefreshToken;
+import io.micronaut.security.token.jwt.validator.JwtTokenValidator;
+import io.micronaut.security.token.validator.TokenValidator;
 import io.micronaut.views.ModelAndView;
 import io.micronaut.views.View;
 import io.reactivex.Flowable;
 import org.reactivestreams.Publisher;
 
-import javax.annotation.Nullable;
-import javax.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,6 +36,7 @@ public class PageController {
     private final DataStore dataStore;
     private final DexcomShareAuthenticationProvider authenticationProvider;
     private final AccessRefreshTokenGenerator accessRefreshTokenGenerator;
+    private final TokenValidator tokenValidator;
     private final String clientId;
     private final String clientSecret;
 
@@ -49,6 +45,7 @@ public class PageController {
             DataStore dataStore,
             DexcomShareAuthenticationProvider authenticationProvider,
             AccessRefreshTokenGenerator accessRefreshTokenGenerator,
+            JwtTokenValidator tokenValidator,
             @Property(name = "codes.recursive.client-id") String clientId,
             @Property(name = "codes.recursive.client-secret") String clientSecret
     ) {
@@ -56,6 +53,7 @@ public class PageController {
         this.dataStore = dataStore;
         this.authenticationProvider = authenticationProvider;
         this.accessRefreshTokenGenerator = accessRefreshTokenGenerator;
+        this.tokenValidator = tokenValidator;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
     }
@@ -79,18 +77,18 @@ public class PageController {
     @Post("/auth")
     @View("/auth")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    public HttpResponse authSubmit(String accountName, String password, String redirect_uri, String state) throws IOException {
+    public HttpResponse authSubmit(@Body AuthRequest authRequest) throws IOException {
 
-        UsernamePasswordCredentials usernamePasswordCredentials = new UsernamePasswordCredentials(accountName, password);
+        UsernamePasswordCredentials usernamePasswordCredentials = new UsernamePasswordCredentials(authRequest.getAccountName(), authRequest.getPassword());
         Publisher<AuthenticationResponse> authenticationResponsePublisher = authenticationProvider.authenticate(usernamePasswordCredentials);
         AuthenticationResponse authenticationResponse = Flowable.fromPublisher(authenticationResponsePublisher).blockingFirst();
 
         if( authenticationResponse instanceof AuthenticationFailed ) {
             return HttpResponse.ok(
                     Map.of(
-                            "redirect_uri", redirect_uri,
+                            "redirect_uri", authRequest.getRedirectUri(),
                             "auth_failed", "failed",
-                            "state", state
+                            "state", authRequest.getState()
                     )
             );
         }
@@ -101,10 +99,10 @@ public class PageController {
                 if( token.isPresent() ) {
                     AccessRefreshToken accessRefreshToken = token.get();
                     String authCode = UUID.randomUUID().toString().replace("-", "");
-                    Map<String, Object> store = Map.of("username", accountName, "token", accessRefreshToken);
+                    Map<String, Object> store = Map.of("username", authRequest.getAccountName(), "token", accessRefreshToken);
                     dataStore.authCodes.put(authCode, store);
-                    String url = redirect_uri
-                            + "?state=" + state
+                    String url = authRequest.getRedirectUri()
+                            + "?state=" + authRequest.getState()
                             + "&code="+ authCode;
                     return HttpResponse.redirect(URI.create(url));
                 }
@@ -112,9 +110,9 @@ public class PageController {
         }
         return HttpResponse.ok(
                 Map.of(
-                        "redirect_uri", redirect_uri,
+                        "redirect_uri", authRequest.getRedirectUri(),
                         "auth_failed", "failed",
-                        "state", state
+                        "state", authRequest.getState()
                 )
         );
     }
@@ -122,25 +120,22 @@ public class PageController {
     @Post("/token")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.APPLICATION_JSON)
-    public HttpResponse token(
-            @Nullable String code,
-            String grant_type,
-            String client_id,
-            String client_secret,
-            @Nullable String refresh_token) throws IOException {
+    public HttpResponse token(@Body TokenRequest tokenRequest) throws IOException {
 
-        if( !client_id.equals(this.clientId) || !client_secret.equals(this.clientSecret) ) {
+        if( !clientId.equals(this.clientId) || !clientSecret.equals(this.clientSecret) ) {
             return HttpResponse.status(HttpStatus.UNAUTHORIZED).body(
                     Map.of("invalid_credentials", true)
             );
         }
         AccessRefreshToken token = new AccessRefreshToken();
-        if( code != null ) {
-            Map<String, Object> store = dataStore.authCodes.get(code);
+        if( tokenRequest.getCode() != null ) {
+            Map<String, Object> store = dataStore.authCodes.get(tokenRequest.getCode());
             token = (AccessRefreshToken) store.get("token");
         }
-        if( refresh_token != null ) {
-            Optional<AccessRefreshToken> tokenOptional = accessRefreshTokenGenerator.generate(refresh_token, new HashMap<String, Object>());
+        if( tokenRequest.getRefreshToken() != null ) {
+            Flowable<Authentication> authenticationFlowable = Flowable.fromPublisher(tokenValidator.validateToken(tokenRequest.getRefreshToken()));
+            Authentication authentication = authenticationFlowable.blockingFirst();
+            Optional<AccessRefreshToken> tokenOptional = accessRefreshTokenGenerator.generate(tokenRequest.getRefreshToken(), authentication.getAttributes());
             token = tokenOptional.get();
         }
         return HttpResponse.ok(
